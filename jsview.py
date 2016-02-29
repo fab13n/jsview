@@ -1,0 +1,203 @@
+#!/usr/bin/env python2.7
+#
+# Copyright (c) 2016 Fabien Fleutot.
+#
+# This software is made available under the [MIT public
+# license](https://opensource.org/licenses/MIT).
+#
+# (Kind-of) smart JSON formatter.
+#
+# Every JSON formatter I've found inserts newline + indent at every
+# list item and every object pair. As a result, instead of being
+# unreadable because it's too large (in a single line), the resulting
+# JSON is unreadable because too tall (too many newlines), especially
+# when dealing with formats like GeoJSON where long lists of
+# coordinates are handled.
+#
+# This formatter works with a page width in mind, by default 80, and
+# tries to optimize screen space usage in both width and height.
+
+import sys
+import json
+from collections import Hashable
+from numbers import Number
+from argparse import ArgumentParser
+
+
+# Quick and dirty memoization utility. Works on objects and lists as
+# long as no-one tries to modify them for the duration of the
+# memoization process.
+class Memo(object):
+    def __init__(self):
+        self.hashable_cache = {}
+        self.non_hashable_cache = {}
+
+    def get(self, x):
+        if isinstance(x, Hashable): return self.hashable_cache.get(x, None)
+        else: return self.non_hashable_cache.get(id(x), None)
+
+    def set(self, x, y):
+        if isinstance(x, Hashable): self.hashable_cache[x] = y
+        else: self.non_hashable_cache[id(x)] = y
+
+# Decorator to turn functions into memoized functions
+def memo(f):
+    M = Memo()
+    def mf(x):
+        y = M.get(x)
+        if y is not None:
+            return y
+        else:
+            y = f(x)
+            M.set(x, y)
+            return y
+    return mf
+
+# Write some JSON content, smartly indented, into a buffer (list of
+# strings). Take into account:
+#
+# * the intended page width, in characters, which it will try not to overflow
+# * the number of spaces to use for indentation
+# * whether a few further lines should be saved by putting closing "]" and "}"
+#   characters on the same line as the last element of a list / object.
+#
+# Return the buffer as a result.
+def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
+
+    # Number of characters which would be taken by a JSON fragment if
+    # it were printed as a single line.  Since a block's size will be
+    # asked again and again (as its computation is a subpart of the
+    # computation of all of its superblocks), results are memoized.
+    @memo
+    def one_line_size(x):
+        if isinstance(x, dict):
+            # each pair has a ": ", each pair but the last has a ", ",
+            # and there's a surrounding "{}" => the missing last ", "
+            # is cancelled by the "{}"
+            return sum(one_line_size(key) + one_line_size(value) + 4 for key, value in x.items())
+        elif isinstance(x, list):
+            # the extra final ", " cancels the surrounding "[]"
+            return sum(one_line_size(y) + 2 for y in x)
+        else:
+           return len(json.dumps(x))
+
+    # A "boring" list is one which should take as little vertical
+    # space as possible, even if it won't fit in a single
+    # list. elements should be pushed as indented lines of as many
+    # elements as possible, each line going as far right as possible
+    # without breaking the width.
+    #
+    # Notice that this question of boringness only makes sense for
+    # lists which wouldn't fit on a single line.
+    #
+    # For now, this only applies to (possibly nested) lists of numbers.
+    def is_boring_list(x):
+        if not isinstance(x, list):
+            return False
+        for y in x:
+            if not isinstance(y, Number) and not is_boring_list(y): return False
+        return True
+
+    # Main recursive function.
+    #
+    # * x: the JSON object to be dumped in buffer
+    # * one_line: when true, we know without further verification that x must
+    #   be written on a single line
+    # * current_indent: current level of nesting in surrounding objects/lists
+    # * current_offset: index of the first character to dump in the line
+    #   (in other words, it's then initial X coordinate)
+    # * width: intended page width
+    #
+    # No returned result, the string bits are accumulated in buffer
+    def parse(x, one_line, current_indent, current_offset, width):
+        if isinstance(x, dict):
+            # TODO: sort items by key
+            if one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line object
+                buffer.append("{")
+                current_offset += 1
+                for key, value in x.items():
+                    current_offset = parse(key, True, current_indent+1, current_offset, width)
+                    buffer.append(": ")
+                    current_offset = parse(value, True, current_indent+1, current_offset, width)
+                    buffer.append(", ")
+                buffer.pop()  # remove last ", "
+                buffer.append("}")
+                return current_offset - 1  # "}" is one character shorter than ", "
+            else:  # Object, newline for each pair
+                buffer.append("{")
+                inner_offset = indent * (current_indent+1)
+                new_line_and_indent = "\n" + " " * inner_offset
+                for key, value in x.items():
+                    buffer.append(new_line_and_indent)
+                    current_offset = parse(key, False, current_indent+1, inner_offset, width)
+                    buffer.append(": ")
+                    parse(value, False, current_indent+1, current_offset+2, width)
+                    buffer.append(", ")
+                buffer.pop()
+                if not close_on_same_line:
+                    buffer.append("\n")
+                    buffer.append(" " * (current_indent * indent))
+                buffer.append("}")
+                return current_indent * indent + 1
+        elif isinstance(x, list):
+            if one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line list
+                buffer.append("[")
+                for y in x:
+                    current_offset = parse(y, True, current_indent+1, current_offset, width) + 2
+                    buffer.append(", ")
+                buffer.pop()  # remove last ", "
+                buffer.append("]")
+                return current_offset - 1  # "]" is one character shorter than ", "
+            elif is_boring_list(x):  # Multi-line list, but still as many elements as possible per line
+                buffer.append("[")
+                current_offset += 1
+                inner_offset = indent * (current_indent+1)
+                new_line_and_indent = "\n" + " " * inner_offset
+                for y in x:
+                    if current_offset != None and current_offset + one_line_size(y) + 2 >= width:
+                        buffer.append(new_line_and_indent)
+                        current_offset = inner_offset
+                    current_offset = parse(y, False, current_indent+1, current_offset, width-2)
+                    buffer.append(", ")
+                buffer.pop()
+                buffer.append("]")
+                return current_indent * indent + 1
+            else:  # One-element-per-line list
+                buffer.append("[")
+                inner_offset = indent * (current_indent+1)
+                new_line_and_indent = "\n" + " " * inner_offset
+                for y in x:
+                    buffer.append(new_line_and_indent)
+                    parse(y, False, current_indent+1, inner_offset, width-2)
+                    buffer.append(", ")
+                buffer.pop()
+                if not close_on_same_line:
+                    buffer.append("\n")
+                    buffer.append(" " * (current_indent * indent))
+                buffer.append("]")
+                return current_indent * indent + 1
+        else:  # Non-compound element
+            r = json.dumps(x)
+            buffer.append(r)
+            return current_offset + len(r)
+    parse(x, False, 0, 0, width)
+    return buffer
+
+# Call from command line
+if __name__ == "__main__":
+    parser = ArgumentParser(description="Formatting of JSON inputs with smart line-returns and indendation.")
+    parser.add_argument('-w', '--width', default=80)
+    parser.add_argument('-i', '--indent', default=2)
+    parser.add_argument('-o', '--output')
+    parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False)
+    parser.add_argument('filename')
+    args = parser.parse_args()
+    f = open(args.filename) if args.filename != "-" else sys.stdin
+    with f:
+        content_string = f.read()
+    content = json.loads(content_string)
+    buffer = tobuffer(content, [], args.width, args.indent, args.close_on_same_line)
+    g = open(args.output, "w") if args.output else sys.stdout
+    with g:
+        for fragment in buffer:
+            g.write(fragment)
