@@ -185,12 +185,17 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
 
 # Call from command line
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Formatting of JSON inputs with smart line-returns and indendation.")
-    parser.add_argument('-w', '--width', default=80)
-    parser.add_argument('-i', '--indent', default=2)
-    parser.add_argument('-o', '--output')
-    parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False)
-    parser.add_argument('filename')
+    parser = ArgumentParser(description="Format JSON inputs with smart line-returns and indendation.")
+    parser.add_argument('-w', '--width', default=80,
+                        help="Set the ideal width of the output text; default=80")
+    parser.add_argument('-i', '--indent', default=2,
+                        help="Indentation, in number of space characters; default=2")
+    parser.add_argument('-o', '--output',
+                        help="Output file; defaults to stdout")
+    parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False,
+                        help="When set, further lines are saved by closing lists and objects on the same\
+                              line as the last element."   )
+    parser.add_argument('filename', help="Input file; use '-' to read from stdin")
     args = parser.parse_args()
     f = open(args.filename) if args.filename != "-" else sys.stdin
     with f:
