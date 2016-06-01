@@ -17,11 +17,16 @@
 # This formatter works with a page width in mind, by default 80, and
 # tries to optimize screen space usage in both width and height.
 
+import os
 import sys
 import json
 from collections import Hashable
 from numbers import Number
 from argparse import ArgumentParser
+
+
+# default width, if it's not specified and we fail to retrieve it from `stty`.
+DEFAULT_WIDTH = 80
 
 
 # Quick and dirty memoization utility. Works on objects and lists as
@@ -108,11 +113,15 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
     #   (in other words, it's then initial X coordinate)
     # * width: intended page width
     #
-    # No returned result, the string bits are accumulated in buffer
+    # Returns the offset at the end of the buffer (might be less then current_offset
+    # if line breaks have been added).
     def parse(x, one_line, current_indent, current_offset, width):
         if isinstance(x, dict):
             # TODO: sort items by key
-            if one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line object
+            if not x:  # Empty object
+                buffer.append("{}")
+                return current_offset+2
+            elif one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line object
                 buffer.append("{")
                 current_offset += 1
                 for key, value in x.items():
@@ -140,8 +149,12 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 buffer.append("}")
                 return current_indent * indent + 1
         elif isinstance(x, list):
-            if one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line list
+            if not x:  # Empty list
+                buffer.append("[]")
+                return current_offset+2
+            elif one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line list
                 buffer.append("[")
+                current_offset += 1
                 for y in x:
                     current_offset = parse(y, True, current_indent+1, current_offset, width) + 2
                     buffer.append(", ")
@@ -155,27 +168,32 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 new_line_and_indent = "\n" + " " * inner_offset
                 for y in x:
                     if current_offset != None and current_offset + one_line_size(y) + 2 >= width:
+                        # Next element won't fit on current line
                         buffer.append(new_line_and_indent)
                         current_offset = inner_offset
                     current_offset = parse(y, False, current_indent+1, current_offset, width-2)
                     buffer.append(", ")
+                    current_offset += 2
                 buffer.pop()
                 buffer.append("]")
-                return current_indent * indent + 1
+                return current_offset - 1 # Replaced ", " with "]"
             else:  # One-element-per-line list
                 buffer.append("[")
                 inner_offset = indent * (current_indent+1)
                 new_line_and_indent = "\n" + " " * inner_offset
                 for y in x:
                     buffer.append(new_line_and_indent)
-                    parse(y, False, current_indent+1, inner_offset, width-2)
+                    last_element_offset = parse(y, False, current_indent+1, inner_offset, width-2)
                     buffer.append(", ")
                 buffer.pop()
-                if not close_on_same_line:
+                if close_on_same_line:
+                    buffer.append("]")
+                    return last_element_offset + 1
+                else:
                     buffer.append("\n")
                     buffer.append(" " * (current_indent * indent))
-                buffer.append("]")
-                return current_indent * indent + 1
+                    buffer.append("]")
+                    return current_indent * indent + 1
         else:  # Non-compound element
             r = json.dumps(x)
             buffer.append(r)
@@ -186,7 +204,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
 # Call from command line
 if __name__ == "__main__":
     parser = ArgumentParser(description="Format JSON inputs with smart line-returns and indendation.")
-    parser.add_argument('-w', '--width', default=80,
+    parser.add_argument('-w', '--width', default=0,
                         help="Set the ideal width of the output text; default=80")
     parser.add_argument('-i', '--indent', default=2,
                         help="Indentation, in number of space characters; default=2")
@@ -197,6 +215,13 @@ if __name__ == "__main__":
                               line as the last element."   )
     parser.add_argument('filename', help="Input file; use '-' to read from stdin")
     args = parser.parse_args()
+    if args.width==0:
+        try:
+            import os
+            rows, columns = (int(x) for x in os.popen('stty size', 'r').read().split())
+            args.width=columns
+        except Exception:
+            args.width = DEFAULT_WIDTH
     f = open(args.filename) if args.filename != "-" else sys.stdin
     with f:
         content_string = f.read()
