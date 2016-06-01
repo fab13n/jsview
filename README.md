@@ -28,7 +28,8 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -w WIDTH, --width WIDTH
-                        Set the ideal width of the output text; default=80
+                        Set the ideal width of the output text; if unspecified,
+						try to fit the terminal's width as returned by stty.
   -i INDENT, --indent INDENT
                         Indentation, in number of space characters; default=2
   -o OUTPUT, --output OUTPUT
