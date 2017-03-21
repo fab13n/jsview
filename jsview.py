@@ -212,8 +212,10 @@ if __name__ == "__main__":
                         help="Output file; defaults to stdout")
     parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False,
                         help="When set, further lines are saved by closing lists and objects on the same\
-                              line as the last element."   )
-    parser.add_argument('filename', help="Input file; use '-' to read from stdin")
+                              line as the last element.")
+    parser.add_argument('-r', '--reformat', action='store_const', const=True, default=False,
+                        help="When set, file content is replaced by a reformatted version. File must not be '-'.")
+    parser.add_argument('filename', help="Input file; use '-' to read from stdin.")
     args = parser.parse_args()
     if args.width==0:
         try:
@@ -227,7 +229,18 @@ if __name__ == "__main__":
         content_string = f.read()
     content = json.loads(content_string)
     buffer = tobuffer(content, [], args.width, args.indent, args.close_on_same_line)
-    g = open(args.output, "w") if args.output else sys.stdout
+    if args.reformat:
+        if args.filename == "-":
+            sys.stderr.write("Cannot reformat from stdin\n");
+            exit(-1)
+        else:
+            g = open(args.filename, "w")
+    elif args.output:
+        g = open(args.output, "w")
+    else:
+        g = sys.stdout
     with g:
         for fragment in buffer:
             g.write(fragment)
+    if args.reformat:
+        print "Reformatted file %s" % args.filename
