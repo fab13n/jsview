@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 #
-# Copyright (c) 2016 Fabien Fleutot.
+# Copyright (c) 2016-2017 Fabien Fleutot.
 #
 # This software is made available under the [MIT public
 # license](https://opensource.org/licenses/MIT).
@@ -20,7 +20,7 @@
 import os
 import sys
 import json
-from collections import Hashable
+from collections import Hashable, OrderedDict
 from numbers import Number
 from argparse import ArgumentParser
 
@@ -117,14 +117,15 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
     # if line breaks have been added).
     def parse(x, one_line, current_indent, current_offset, width):
         if isinstance(x, dict):
-            # TODO: sort items by key
+            # Item are stored because `json.loads` was hooked with a `collections.OrderedDict`.
+            sorted_items = x.items()
             if not x:  # Empty object
                 buffer.append("{}")
                 return current_offset+2
             elif one_line or not bool(x) or current_offset + one_line_size(x) <= width:  # Single-line object
                 buffer.append("{")
                 current_offset += 1
-                for key, value in x.items():
+                for key, value in sorted_items:
                     current_offset = parse(key, True, current_indent+1, current_offset, width)
                     buffer.append(": ")
                     current_offset = parse(value, True, current_indent+1, current_offset, width)
@@ -136,7 +137,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 buffer.append("{")
                 inner_offset = indent * (current_indent+1)
                 new_line_and_indent = "\n" + " " * inner_offset
-                for key, value in x.items():
+                for key, value in sorted_items:
                     buffer.append(new_line_and_indent)
                     current_offset = parse(key, False, current_indent+1, inner_offset, width)
                     buffer.append(": ")
@@ -227,7 +228,11 @@ if __name__ == "__main__":
     f = open(args.filename) if args.filename != "-" else sys.stdin
     with f:
         content_string = f.read()
-    content = json.loads(content_string)
+    try:
+        content = json.loads(content_string, object_pairs_hook=OrderedDict)
+    except ValueError as e:
+        sys.stderr.write("Invalid JSON input: %s\n" % e.message)
+        exit(-2)
     buffer = tobuffer(content, [], args.width, args.indent, args.close_on_same_line)
     if args.reformat:
         if args.filename == "-":
