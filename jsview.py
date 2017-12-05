@@ -233,7 +233,7 @@ if __name__ == "__main__":
     except ValueError as e:
         sys.stderr.write("Invalid JSON input: %s\n" % e.message)
         exit(-2)
-    buffer = tobuffer(content, [], args.width, args.indent, args.close_on_same_line)
+    buffer = tobuffer(content, [], args.width, int(args.indent), args.close_on_same_line)
     if args.reformat:
         if args.filename == "-":
             sys.stderr.write("Cannot reformat from stdin\n");
