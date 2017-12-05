@@ -58,6 +58,12 @@ def memo(f):
             return y
     return mf
 
+# Trim spaces, if any, at the end of a buffer (list of string fragments).
+# This is intended to avoid spaces just before a newline.
+def strip_final_spaces(buffer):
+    if len(buffer) > 0:
+        buffer[-1] = buffer[-1].rstrip()
+
 # Write some JSON content, smartly indented, into a buffer (list of
 # strings). Take into account:
 #
@@ -138,6 +144,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 inner_offset = indent * (current_indent+1)
                 new_line_and_indent = "\n" + " " * inner_offset
                 for key, value in sorted_items:
+                    strip_final_spaces(buffer)
                     buffer.append(new_line_and_indent)
                     current_offset = parse(key, False, current_indent+1, inner_offset, width)
                     buffer.append(": ")
@@ -145,6 +152,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                     buffer.append(", ")
                 buffer.pop()
                 if not close_on_same_line:
+                    strip_final_spaces(buffer)
                     buffer.append("\n")
                     buffer.append(" " * (current_indent * indent))
                 buffer.append("}")
@@ -170,6 +178,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 for y in x:
                     if current_offset != None and current_offset + one_line_size(y) + 2 >= width:
                         # Next element won't fit on current line
+                        strip_final_spaces(buffer)
                         buffer.append(new_line_and_indent)
                         current_offset = inner_offset
                     current_offset = parse(y, False, current_indent+1, current_offset, width-2)
@@ -183,6 +192,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                 inner_offset = indent * (current_indent+1)
                 new_line_and_indent = "\n" + " " * inner_offset
                 for y in x:
+                    strip_final_spaces(buffer)
                     buffer.append(new_line_and_indent)
                     last_element_offset = parse(y, False, current_indent+1, inner_offset, width-2)
                     buffer.append(", ")
@@ -191,6 +201,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                     buffer.append("]")
                     return last_element_offset + 1
                 else:
+                    strip_final_spaces(buffer)
                     buffer.append("\n")
                     buffer.append(" " * (current_indent * indent))
                     buffer.append("]")
