@@ -1,4 +1,4 @@
-Copyright (c) 2016 Fabien Fleutot.
+Copyright (c) 2016-2017 Fabien Fleutot.
 
 This software is made available under the
 [MIT public license](https://opensource.org/licenses/MIT).
@@ -18,7 +18,7 @@ tries to optimize screen space usage in both width and height.
 # Usage
 
 ```
-jsview.py [-h] [-w WIDTH] [-i INDENT] [-o OUTPUT] [-l] filename
+jsview.py [-h] [-w WIDTH] [-i INDENT] [-o OUTPUT] [-l] [-r] filename
 
 Format JSON inputs with smart line-returns and indendation.
 
@@ -29,7 +29,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -w WIDTH, --width WIDTH
                         Set the ideal width of the output text; if unspecified,
-						try to fit the terminal's width as returned by stty.
+                        try to fit the terminal's width as returned by stty.
   -i INDENT, --indent INDENT
                         Indentation, in number of space characters; default=2
   -o OUTPUT, --output OUTPUT
@@ -37,6 +37,8 @@ optional arguments:
   -l, --close-on-same-line
                         When set, further lines are saved by closing lists and
                         objects on the same line as the last element.
+  -r, --reformat        When set, file content is replaced by a reformatted
+                        version. File must not be '-'.
 ```
 
 # Example
