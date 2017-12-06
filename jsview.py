@@ -29,10 +29,12 @@ from argparse import ArgumentParser
 DEFAULT_WIDTH = 80
 
 
-# Quick and dirty memoization utility. Works on objects and lists as
-# long as no-one tries to modify them for the duration of the
-# memoization process.
 class Memo(object):
+    """Quick and dirty memoization utility. Works on objects and lists as
+    long as no-one tries to modify them for the duration of the
+    memoization process.
+
+    """
     def __init__(self):
         self.hashable_cache = {}
         self.non_hashable_cache = {}
@@ -45,8 +47,11 @@ class Memo(object):
         if isinstance(x, Hashable): self.hashable_cache[x] = y
         else: self.non_hashable_cache[id(x)] = y
 
-# Decorator to turn functions into memoized functions
+
 def memo(f):
+    """Decorator to turn functions into memoized functions.
+
+    """
     M = Memo()
     def mf(x):
         y = M.get(x)
@@ -58,29 +63,35 @@ def memo(f):
             return y
     return mf
 
-# Trim spaces, if any, at the end of a buffer (list of string fragments).
-# This is intended to avoid spaces just before a newline.
 def strip_final_spaces(buffer):
+    """Trim spaces, if any, at the end of a buffer (list of string
+    fragments).  This is intended to avoid spaces just before a
+    newline.
+
+    """
     if len(buffer) > 0:
         buffer[-1] = buffer[-1].rstrip()
 
-# Write some JSON content, smartly indented, into a buffer (list of
-# strings). Take into account:
-#
-# * the intended page width, in characters, which it will try not to overflow
-# * the number of spaces to use for indentation
-# * whether a few further lines should be saved by putting closing "]" and "}"
-#   characters on the same line as the last element of a list / object.
-#
-# Return the buffer as a result.
 def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
+    """Write some JSON content, smartly indented, into a buffer (list of
+    strings). Take into account:
 
-    # Number of characters which would be taken by a JSON fragment if
-    # it were printed as a single line.  Since a block's size will be
-    # asked again and again (as its computation is a subpart of the
-    # computation of all of its superblocks), results are memoized.
+    * the intended page width, in characters, which it will try not to overflow
+    * the number of spaces to use for indentation
+    * whether a few further lines should be saved by putting closing "]" and "}"
+      characters on the same line as the last element of a list / object.
+
+    Return the buffer as a result.
+
+    """
     @memo
     def one_line_size(x):
+        """Number of characters which would be taken by a JSON fragment if it
+        were printed as a single line.  Since a block's size will be
+        asked again and again (as its computation is a subpart of the
+        computation of all of its superblocks), results are memoized.
+
+        """
         if isinstance(x, dict):
             # each pair has a ": ", each pair but the last has a ", ",
             # and there's a surrounding "{}" => the missing last ", "
@@ -92,36 +103,45 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
         else:
            return len(json.dumps(x))
 
-    # A "boring" list is one which should take as little vertical
-    # space as possible, even if it won't fit in a single
-    # list. elements should be pushed as indented lines of as many
-    # elements as possible, each line going as far right as possible
-    # without breaking the width.
-    #
-    # Notice that this question of boringness only makes sense for
-    # lists which wouldn't fit on a single line.
-    #
-    # For now, this only applies to (possibly nested) lists of numbers.
     def is_boring_list(x):
+        """Determine whether `x` is a boring list.
+
+        A "boring" list is one which should take as little vertical
+        space as possible, even if it won't fit in a single list. In
+        other words, it should be formatted like a paragraph, not as
+        either a single line or a single column. Elements should be
+        pushed as indented lines of as many elements as possible, each
+        line going as far right as possible without breaking the
+        width.
+
+        Notice that this question of boringness only makes sense for
+        lists which wouldn't fit on a single line.
+
+        For now, this only applies to (possibly nested) lists of
+        numbers.
+
+        """
         if not isinstance(x, list):
             return False
         for y in x:
             if not isinstance(y, Number) and not is_boring_list(y): return False
         return True
 
-    # Main recursive function.
-    #
-    # * x: the JSON object to be dumped in buffer
-    # * one_line: when true, we know without further verification that x must
-    #   be written on a single line
-    # * current_indent: current level of nesting in surrounding objects/lists
-    # * current_offset: index of the first character to dump in the line
-    #   (in other words, it's then initial X coordinate)
-    # * width: intended page width
-    #
-    # Returns the offset at the end of the buffer (might be less then current_offset
-    # if line breaks have been added).
     def parse(x, one_line, current_indent, current_offset, width):
+     """Main recursive function.
+
+     * `x`: the JSON object to be dumped in buffer
+     * `one_line`: when true, we know without further verification that x must
+       be written on a single line
+     * `current_indent`: current level of nesting in surrounding objects/lists
+     * `current_offset`: index of the first character to dump in the line
+       (in other words, it's then initial X coordinate)
+     * `width`: intended page width
+
+     Returns the offset at the end of the buffer (might be less than
+     `current_offset` if line breaks have been added).
+
+     """
         if isinstance(x, dict):
             # Item are stored because `json.loads` was hooked with a `collections.OrderedDict`.
             sorted_items = x.items()
