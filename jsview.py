@@ -124,24 +124,24 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
         if not isinstance(x, list):
             return False
         for y in x:
-            if not isinstance(y, Number) and not is_boring_list(y): return False
+            if not isinstance(y, Number) and y is not None and not is_boring_list(y): return False
         return True
 
     def parse(x, one_line, current_indent, current_offset, width):
-     """Main recursive function.
+        """Main recursive function.
 
-     * `x`: the JSON object to be dumped in buffer
-     * `one_line`: when true, we know without further verification that x must
-       be written on a single line
-     * `current_indent`: current level of nesting in surrounding objects/lists
-     * `current_offset`: index of the first character to dump in the line
-       (in other words, it's then initial X coordinate)
-     * `width`: intended page width
+        * `x`: the JSON object to be dumped in buffer
+        * `one_line`: when true, we know without further verification that x must
+        be written on a single line
+        * `current_indent`: current level of nesting in surrounding objects/lists
+        * `current_offset`: index of the first character to dump in the line
+        (in other words, it's then initial X coordinate)
+        * `width`: intended page width
 
-     Returns the offset at the end of the buffer (might be less than
-     `current_offset` if line breaks have been added).
+        Returns the offset at the end of the buffer (might be less than
+        `current_offset` if line breaks have been added).
 
-     """
+        """
         if isinstance(x, dict):
             # Item are stored because `json.loads` was hooked with a `collections.OrderedDict`.
             sorted_items = x.items()
