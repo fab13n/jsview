@@ -30,10 +30,10 @@ DEFAULT_WIDTH = 80
 
 
 class Memo(object):
-    """Quick and dirty memoization utility. Works on objects and lists as
+    """
+    Quick and dirty memoization utility. Works on objects and lists as
     long as no-one tries to modify them for the duration of the
     memoization process.
-
     """
     def __init__(self):
         self.hashable_cache = {}
@@ -49,8 +49,8 @@ class Memo(object):
 
 
 def memo(f):
-    """Decorator to turn functions into memoized functions.
-
+    """
+    Decorator to turn functions into memoized functions.
     """
     M = Memo()
     def mf(x):
@@ -64,34 +64,39 @@ def memo(f):
     return mf
 
 def strip_final_spaces(buffer):
-    """Trim spaces, if any, at the end of a buffer (list of string
+    """
+    Trim spaces, if any, at the end of a buffer (list of string
     fragments).  This is intended to avoid spaces just before a
     newline.
-
     """
     if len(buffer) > 0:
         buffer[-1] = buffer[-1].rstrip()
 
 def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
              utf8_output=False):
-    """Write some JSON content, smartly indented, into a buffer (list of
+    """
+    Write some JSON content, smartly indented, into a buffer (list of
     strings). Take into account:
 
-    * the intended page width, in characters, which it will try not to overflow
-    * the number of spaces to use for indentation
-    * whether a few further lines should be saved by putting closing "]" and "}"
-      characters on the same line as the last element of a list / object.
+    * the intended page width, in characters, which it will try not to
+      overflow;
+    * the number of spaces to use for indentation;
+    * whether a few further lines should be saved by putting closing
+      "]" and "}" characters on the same line as the last element of a
+      list / object;
+    * Whether strings should be output with `\uxxxx` ASCII 7 bits
+      encoding, as as UTF8.
 
     Return the buffer as a result.
-
     """
     @memo
     def one_line_size(x):
-        """Number of characters which would be taken by a JSON fragment if it
-        were printed as a single line.  Since a block's size will be
-        asked again and again (as its computation is a subpart of the
-        computation of all of its superblocks), results are memoized.
-
+        """
+        Number of characters which would be taken by a JSON fragment
+        if it were printed as a single line.  Since a block's size
+        will be asked again and again (as its computation is a subpart
+        of the computation of all of its superblocks), results are
+        memoized.
         """
         if isinstance(x, dict):
             # each pair has a ": ", each pair but the last has a ", ",
@@ -105,7 +110,8 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
            return len(json.dumps(x))
 
     def is_boring_list(x):
-        """Determine whether `x` is a boring list.
+        """
+        Determine whether `x` is a boring list.
 
         A "boring" list is one which should take as little vertical
         space as possible, even if it won't fit in a single list. In
@@ -120,7 +126,6 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
 
         For now, this only applies to (possibly nested) lists of
         numbers.
-
         """
         if not isinstance(x, list):
             return False
@@ -129,19 +134,20 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
         return True
 
     def parse(x, one_line, current_indent, current_offset, width):
-        """Main recursive function.
+        """
+        Main recursive function.
 
-        * `x`: the JSON object to be dumped in buffer
-        * `one_line`: when true, we know without further verification that x must
-        be written on a single line
-        * `current_indent`: current level of nesting in surrounding objects/lists
-        * `current_offset`: index of the first character to dump in the line
-        (in other words, it's then initial X coordinate)
-        * `width`: intended page width
+        * `x`: the JSON object to be dumped in buffer;
+        * `one_line`: when true, we know without further verification
+          that x must be written on a single line;
+        * `current_indent`: current level of nesting in surrounding
+          objects/lists;
+        * `current_offset`: index of the first character to dump in
+          the line (in other words, its initial X coordinate);
+        * `width`: intended page width.
 
-        Returns the offset at the end of the buffer (might be less than
-        `current_offset` if line breaks have been added).
-
+        Returns the offset at the end of the buffer (might be less
+        than `current_offset` if line breaks have been added).
         """
         if isinstance(x, dict):
             # Item are stored because `json.loads` was hooked with a `collections.OrderedDict`.
