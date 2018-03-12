@@ -72,7 +72,8 @@ def strip_final_spaces(buffer):
     if len(buffer) > 0:
         buffer[-1] = buffer[-1].rstrip()
 
-def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
+def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
+             utf8_output=False):
     """Write some JSON content, smartly indented, into a buffer (list of
     strings). Take into account:
 
@@ -227,7 +228,10 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False):
                     buffer.append("]")
                     return current_indent * indent + 1
         else:  # Non-compound element
-            r = json.dumps(x)
+            if utf8_output and isinstance(x, unicode):
+                r = json.dumps(x, ensure_ascii=False).encode('utf8')
+            else:
+                r = json.dumps(x)
             buffer.append(r)
             return current_offset + len(r)
     parse(x, False, 0, 0, width)
@@ -245,6 +249,8 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False,
                         help="When set, further lines are saved by closing lists and objects on the same\
                               line as the last element.")
+    parser.add_argument('-u', '--utf8-output', action='store_const', const=True, default=False,
+                        help="Output strings as UTF8 rather than ASCII 7 bits")
     parser.add_argument('-r', '--reformat', action='store_const', const=True, default=False,
                         help="When set, file content is replaced by a reformatted version. File must not be '-'.")
     parser.add_argument('filename', help="Input file; use '-' to read from stdin.")
@@ -269,7 +275,10 @@ if __name__ == "__main__":
     except ValueError as e:
         sys.stderr.write("Invalid JSON input: %s\n" % e.message)
         exit(-2)
-    buffer = tobuffer(content, [], args.width, int(args.indent), args.close_on_same_line)
+
+    buffer = tobuffer(content, [], args.width, int(args.indent),
+                      args.close_on_same_line, args.utf8_output)
+
     if args.reformat:
         if args.filename == "-":
             sys.stderr.write("Cannot reformat from stdin\n");
