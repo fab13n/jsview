@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 #
-# Copyright (c) 2016-2017 Fabien Fleutot.
+# Copyright (c) 2016-2018 Fabien Fleutot.
 #
 # This software is made available under the [MIT public
 # license](https://opensource.org/licenses/MIT).

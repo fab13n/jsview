@@ -1,4 +1,4 @@
-Copyright (c) 2016-2017 Fabien Fleutot.
+Copyright (c) 2016-2018 Fabien Fleutot.
 
 This software is made available under the
 [MIT public license](https://opensource.org/licenses/MIT).
@@ -18,7 +18,7 @@ tries to optimize screen space usage in both width and height.
 # Usage
 
 ```
-jsview.py [-h] [-w WIDTH] [-i INDENT] [-o OUTPUT] [-l] [-r] filename
+jsview.py [-h] [-w WIDTH] [-i INDENT] [-o OUTPUT] [-l] [-u] [-r] filename
 
 Format JSON inputs with smart line-returns and indendation.
 
@@ -37,6 +37,7 @@ optional arguments:
   -l, --close-on-same-line
                         When set, further lines are saved by closing lists and
                         objects on the same line as the last element.
+  -u, --utf8-output     Output strings as UTF8 rather than ASCII 7 bits
   -r, --reformat        When set, file content is replaced by a reformatted
                         version. File must not be '-'.
 ```
