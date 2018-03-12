@@ -251,9 +251,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.width==0:
         try:
-            import os
-            rows, columns = (int(x) for x in os.popen('stty size', 'r').read().split())
-            args.width=columns
+            from subprocess import Popen, PIPE
+            p = Popen(['stty', 'size'], stdout=PIPE, stderr=PIPE)
+            stdout, stderr = p.communicate()
+            if p.returncode == 0:
+                rows, columns = (int(x) for x in stdout.split())
+                args.width = columns
+            else:  # Error during stty execution, can't get temrinal size
+                args.width = DEFAULT_WIDTH
         except Exception:
             args.width = DEFAULT_WIDTH
     f = open(args.filename) if args.filename != "-" else sys.stdin
@@ -278,5 +283,6 @@ if __name__ == "__main__":
     with g:
         for fragment in buffer:
             g.write(fragment)
+        g.write('\n')
     if args.reformat:
         print "Reformatted file %s" % args.filename
