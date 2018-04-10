@@ -261,18 +261,20 @@ if __name__ == "__main__":
                         help="When set, file content is replaced by a reformatted version. File must not be '-'.")
     parser.add_argument('filename', help="Input file; use '-' to read from stdin.")
     args = parser.parse_args()
-    if args.width==0:
+    width = int(args.width)
+    if width == 0:
         try:
+            # `stty size` should return the current numbers of rows and columns of the terminal, separated by a space.
             from subprocess import Popen, PIPE
             p = Popen(['stty', 'size'], stdout=PIPE, stderr=PIPE)
             stdout, stderr = p.communicate()
             if p.returncode == 0:
                 rows, columns = (int(x) for x in stdout.split())
-                args.width = columns
+                width = columns
             else:  # Error during stty execution, can't get temrinal size
-                args.width = DEFAULT_WIDTH
-        except Exception:
-            args.width = DEFAULT_WIDTH
+                width = DEFAULT_WIDTH
+        except Exception:  # stty failed for some reason (not found, not in a terminal...)
+            width = DEFAULT_WIDTH
     f = open(args.filename) if args.filename != "-" else sys.stdin
     with f:
         content_string = f.read()
@@ -282,7 +284,7 @@ if __name__ == "__main__":
         sys.stderr.write("Invalid JSON input: %s\n" % e.message)
         exit(-2)
 
-    buffer = tobuffer(content, [], args.width, int(args.indent),
+    buffer = tobuffer(content, [], width, int(args.indent),
                       args.close_on_same_line, args.utf8_output)
 
     if args.reformat:
