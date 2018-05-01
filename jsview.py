@@ -73,7 +73,7 @@ def strip_final_spaces(buffer):
         buffer[-1] = buffer[-1].rstrip()
 
 def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
-             utf8_output=False):
+             utf8_output=False, with_boring_lists=True):
     """
     Write some JSON content, smartly indented, into a buffer (list of
     strings). Take into account:
@@ -127,7 +127,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
         For now, this only applies to (possibly nested) lists of
         numbers.
         """
-        if not isinstance(x, list):
+        if not with_boring_lists or not isinstance(x, list):
             return False
         for y in x:
             if not isinstance(y, Number) and y is not None and not is_boring_list(y): return False
@@ -255,11 +255,15 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--close-on-same-line', action='store_const', const=True, default=False,
                         help="When set, further lines are saved by closing lists and objects on the same\
                               line as the last element.")
+    parser.add_argument('-b', '--no-boring-lists', action='store_const', const=True, default=False,
+                        help="When set, boring lists (possibly nested lists of numbers) are not compacted.")
     parser.add_argument('-u', '--utf8-output', action='store_const', const=True, default=False,
                         help="Output strings as UTF8 rather than ASCII 7 bits")
     parser.add_argument('-r', '--reformat', action='store_const', const=True, default=False,
                         help="When set, file content is replaced by a reformatted version. File must not be '-'.")
     parser.add_argument('filename', help="Input file; use '-' to read from stdin.")
+
+    # Agruments parsing
     args = parser.parse_args()
     width = int(args.width)
     if width == 0:
@@ -284,9 +288,12 @@ if __name__ == "__main__":
         sys.stderr.write("Invalid JSON input: %s\n" % e.message)
         exit(-2)
 
+    # Main call
     buffer = tobuffer(content, [], width, int(args.indent),
-                      args.close_on_same_line, args.utf8_output)
+                      args.close_on_same_line, args.utf8_output,
+                      not args.no_boring_lists)
 
+    # Choose and open output channel
     if args.reformat:
         if args.filename == "-":
             sys.stderr.write("Cannot reformat from stdin\n");
@@ -297,9 +304,11 @@ if __name__ == "__main__":
         g = open(args.output, "w")
     else:
         g = sys.stdout
+
     with g:
         for fragment in buffer:
             g.write(fragment)
         g.write('\n')
+
     if args.reformat:
         print "Reformatted file %s" % args.filename
