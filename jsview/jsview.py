@@ -25,6 +25,8 @@ from numbers import Number
 from argparse import ArgumentParser
 
 
+__version__ = "1.0"
+
 # default width, if it's not specified and we fail to retrieve it from `stty`.
 DEFAULT_WIDTH = 80
 
@@ -245,8 +247,50 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
     parse(x, False, 0, 0, width)
     return buffer
 
+
+def dump(obj, fp, width=80, indent=2, close_on_same_line=False,
+         utf8_output=False, with_boring_lists=True):
+    """
+    Dump value `obj` as smartly indented JSON in file-like object `fp`.
+
+    @param obj object to dump
+    @param fp file-like object where JSON is written
+    @param width tentative output lines width in characters
+    @param indent indentation, in number of space characters
+    @param close_on_same_line if true, closing braces and brackets are on the same line as last item,
+           even if items are on separate lines.
+    @param utf8_output if true, use unicode characters as output rather than backslash+u escape sequences
+    @param with_boring_lists if true, possibly-nested series of numbers are packed on as few lines
+           as possible while respecting the width limitation.
+    """
+    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists)
+    for fragment in buffer:
+        fp.write(fragment)
+    fp.write("\n")
+
+
+def dumps(obj, width=80, indent=2, close_on_same_line=False,
+         utf8_output=False, with_boring_lists=True):
+    """
+    Dump value `obj` as smartly indented JSON as a string.
+
+    @param obj object to dump
+    @param fp file-like object where JSON is written
+    @param width tentative output lines width in characters
+    @param indent indentation, in number of space characters
+    @param close_on_same_line if true, closing braces and brackets are on the same line as last item,
+           even if items are on separate lines.
+    @param utf8_output if true, use unicode characters as output rather than backslash+u escape sequences
+    @param with_boring_lists if true, possibly-nested series of numbers are packed on as few lines
+           as possible while respecting the width limitation.
+    @return the JSON string.
+    """
+    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists)
+    return "".join(buffer)
+
+
 # Call from command line
-if __name__ == "__main__":
+def main():
     parser = ArgumentParser(description="Format JSON inputs with smart line-returns and indendation.")
     parser.add_argument('-w', '--width', default=0,
                         help="Set the ideal width of the output text; default=80")
