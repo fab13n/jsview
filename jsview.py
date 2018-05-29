@@ -84,7 +84,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
     * whether a few further lines should be saved by putting closing
       "]" and "}" characters on the same line as the last element of a
       list / object;
-    * Whether strings should be output with `\uxxxx` ASCII 7 bits
+    * Whether strings should be output with "backslash-u" ASCII 7 bits
       encoding, as as UTF8.
 
     Return the buffer as a result.
@@ -234,7 +234,9 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
                     buffer.append("]")
                     return current_indent * indent + 1
         else:  # Non-compound element
-            if utf8_output and isinstance(x, unicode):
+            if utf8_output and sys.version_info.major == 3:
+                r = json.dumps(x, ensure_ascii=False)
+            elif utf8_output and isinstance(x, unicode):
                 r = json.dumps(x, ensure_ascii=False).encode('utf8')
             else:
                 r = json.dumps(x)
@@ -311,4 +313,4 @@ if __name__ == "__main__":
         g.write('\n')
 
     if args.reformat:
-        print "Reformatted file %s" % args.filename
+        print("Reformatted file %s" % args.filename)
