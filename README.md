@@ -15,6 +15,10 @@ coordinates are handled.
 This formatter works with a page width in mind, by default 80, and
 tries to optimize screen space usage in both width and height.
 
+# Installation
+
+    pip install jsview
+
 # Usage
 
 ```
