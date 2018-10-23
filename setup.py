@@ -1,10 +1,11 @@
+
 import re
 import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-with open("jsview/jsview.py") as fh:
+with open("jsview/__init__.py") as fh:
     version = re.search(r'^__version__\s*=\s*"(.*)"', fh.read(), re.M).group(1)
 
 setuptools.setup(
@@ -18,7 +19,7 @@ setuptools.setup(
     url="https://github.com/fab13n/jsview",
     packages=setuptools.find_packages(),
     entry_points={
-        "console_scripts": ['jsview = jsview.jsview:main']
+        "console_scripts": ['jsview = jsview:main']
     },
     classifiers=(
         "Programming Language :: Python :: 2",
