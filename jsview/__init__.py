@@ -20,12 +20,17 @@
 import os
 import sys
 import json
-from collections import Hashable, OrderedDict
 from numbers import Number
 from argparse import ArgumentParser
 
+if sys.version_info.major == 2:
+    from collections import Hashable, OrderedDict
+else:
+    from collections.abc import Hashable
+    OrderedDict = dict
+
 name = "jsview"
-__version__ = "1.1"
+__version__ = "1.2"
 
 # default width, if it's not specified and we fail to retrieve it from `stty`.
 DEFAULT_WIDTH = 80
@@ -75,7 +80,7 @@ def strip_final_spaces(buffer):
         buffer[-1] = buffer[-1].rstrip()
 
 def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
-             utf8_output=False, with_boring_lists=True):
+             utf8_output=False, with_boring_lists=True, cls=None):
     """
     Write some JSON content, smartly indented, into a buffer (list of
     strings). Take into account:
@@ -91,6 +96,11 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
 
     Return the buffer as a result.
     """
+
+    encoder = cls() if cls is not None else None
+
+    None  # Will be filled with an instance of `cls` if needed.
+    
     @memo
     def one_line_size(x):
         """
@@ -109,7 +119,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
             # the extra final ", " cancels the surrounding "[]"
             return sum(one_line_size(y) + 2 for y in x)
         else:
-           return len(json.dumps(x))
+           return len(json.dumps(x, cls=cls))
 
     @memo
     def is_boring_list(x):
@@ -237,12 +247,18 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
                     buffer.append("]")
                     return current_indent * indent + 1
         else:  # Non-compound element
-            if utf8_output and sys.version_info.major == 3:
-                r = json.dumps(x, ensure_ascii=False)
-            elif utf8_output and isinstance(x, unicode):
-                r = json.dumps(x, ensure_ascii=False).encode('utf8')
-            else:
-                r = json.dumps(x)
+            try:
+                if utf8_output and sys.version_info.major == 3:
+                    r = json.dumps(x, ensure_ascii=False)
+                elif utf8_output and isinstance(x, unicode):
+                    r = json.dumps(x, ensure_ascii=False).encode('utf8')
+                else:
+                    r = json.dumps(x)
+            except TypeError:  # Try with custom encoding class, if provided
+                if encoder is None:
+                    raise
+                else:
+                    r = encoder.encode(x)
             buffer.append(r)
             return current_offset + len(r)
     parse(x, False, 0, 0, width)
@@ -250,7 +266,7 @@ def tobuffer(x, buffer=[], width=80, indent=2, close_on_same_line=False,
 
 
 def dump(obj, fp, width=80, indent=2, close_on_same_line=False,
-         utf8_output=False, with_boring_lists=True):
+         utf8_output=False, with_boring_lists=True, cls=None):
     """
     Dump value `obj` as smartly indented JSON in file-like object `fp`.
 
@@ -264,14 +280,14 @@ def dump(obj, fp, width=80, indent=2, close_on_same_line=False,
     @param with_boring_lists if true, possibly-nested series of numbers are packed on as few lines
            as possible while respecting the width limitation.
     """
-    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists)
+    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists, cls)
     for fragment in buffer:
         fp.write(fragment)
     fp.write("\n")
 
 
 def dumps(obj, width=80, indent=2, close_on_same_line=False,
-         utf8_output=False, with_boring_lists=True):
+          utf8_output=False, with_boring_lists=True, cls=None):
     """
     Dump value `obj` as smartly indented JSON as a string.
 
@@ -286,7 +302,8 @@ def dumps(obj, width=80, indent=2, close_on_same_line=False,
            as possible while respecting the width limitation.
     @return the JSON string.
     """
-    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists)
+    # TODO use cls if not None
+    buffer = tobuffer(obj, [], width, indent, close_on_same_line, utf8_output, with_boring_lists, cls)
     return "".join(buffer)
 
 
@@ -331,8 +348,8 @@ def main():
         content_string = f.read()
     try:
         content = json.loads(content_string, object_pairs_hook=OrderedDict)
-    except ValueError as e:
-        sys.stderr.write("Invalid JSON input: %s\n" % e.message)
+    except Exception as e:  # Exception type differs between python 2/3
+        sys.stderr.write("Invalid JSON input: %s\n" % str(e))
         exit(-2)
 
     # Main call
