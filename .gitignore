@@ -2,3 +2,7 @@ build
 dist
 jsview.egg-info
 venvpy*
+.credentials
+*.pyc
+__pycache__
+*#*
