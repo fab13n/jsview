@@ -3,13 +3,14 @@
 set -e
 
 VERSION=$1
+PROJECT=jsview
 
 cd $(dirname $0)
 
 # Check if version has been provided
 if [[ "$VERSION" == "" ]]; then
-    CURRENT_VERSION=$(cat jsonschema_cn/__init__.py | grep '^\s*__version__\s*=' | cut -d'"' -f2)
-    echo "Usage: $0 <new_version number>. Current version is $CURRENT_VERSION."
+    CURRENT_VERSION=$(cat $PROJECT/__init__.py | grep '^\s*__version__\s*=' | cut -d'"' -f2)
+    echo "Usage: $0 <new_version number>. Current version is ${CURRENT_VERSION}."
     if git tag | grep -q "^v$CURRENT_VERSION$"; then
         echo "This version has already been tagged."
     else
@@ -24,7 +25,7 @@ if [[ ! -f .credentials ]]; then
 fi
 
 # Change version in sources
-sed -i "s/^__version__\\s*=.*/__version__ = \"$VERSION\"/" jsonschema_cn/__init__.py
+sed -i "s/^__version__\\s*=.*/__version__ = \"$VERSION\"/" $PROJECT/__init__.py
 
 # Commit + tag + push change(s)
 if [[ $(git status -s) != "" ]]; then
